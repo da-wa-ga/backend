@@ -20,6 +20,7 @@ public class SecurityConfig {
                 // 개발 환경에서는 CSRF 보호를 비활성화할 수 있습니다.
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // 회원가입 엔드포인트는 인증 없이 접근 가능
                         .requestMatchers("/api/auth/signup").permitAll()
                         .anyRequest().authenticated()
