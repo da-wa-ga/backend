@@ -35,6 +35,7 @@ public class UserService {
         user.setUserNickname(request.getNickname());
         user.setUserPassword(passwordEncoder.encode(request.getPassword()));
         user.setUserAddress(request.getAddress());
+        user.setUserWithdrawYn(0);
 
         return userRepository.save(user);
     }
