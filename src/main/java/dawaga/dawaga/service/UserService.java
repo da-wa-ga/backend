@@ -1,8 +1,14 @@
 package dawaga.dawaga.service;
 
+import dawaga.dawaga.dto.LoginRequest;
 import dawaga.dawaga.dto.SignupRequest;
 import dawaga.dawaga.model.User;
 import dawaga.dawaga.respository.UserRepository;
+import dawaga.dawaga.security.JwtTokenProvider;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -11,11 +17,14 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;  // 추가
+    private final JwtTokenProvider jwtTokenProvider;  // 추가
 
-    // 생성자 주입을 통해 UserRepository와 PasswordEncoder를 주입받기
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     public User registerUser(SignupRequest request) {
@@ -38,5 +47,17 @@ public class UserService {
         user.setUserWithdrawYn(0);
 
         return userRepository.save(user);
+    }
+
+    public String authenticateUser(LoginRequest loginRequest) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getId(),
+                        loginRequest.getPassword()
+                )
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        return jwtTokenProvider.generateToken(authentication);
     }
 }

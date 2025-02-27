@@ -9,13 +9,7 @@ import java.util.Optional;
  * User 엔티티에 대한 데이터베이스 작업을 수행
  */
 public interface UserRepository extends JpaRepository<User, Integer> {
-
-    // 로그인 아이디(userId) 중복 여부를 확인하기 위한 메서드
     boolean existsByUserId(String userId);
-
-    // 닉네임 중복 여부를 확인하기 위한 메서드
     boolean existsByUserNickname(String userNickname);
-
-    // 로그인 아이디(userId)로 회원 정보를 조회하는 메서드 (옵션)
     Optional<User> findByUserId(String userId);
 }
