@@ -1,7 +1,8 @@
 package dawaga.dawaga.controller;
 
-import dawaga.dawaga.dto.LoginRequest;
-import dawaga.dawaga.dto.SignupRequest;
+import dawaga.dawaga.dto.auth.LoginRequest;
+import dawaga.dawaga.dto.auth.SignupRequest;
+import dawaga.dawaga.dto.auth.WithdrawRequest;
 import dawaga.dawaga.model.User;
 import dawaga.dawaga.service.UserService;
 import jakarta.validation.Valid;
@@ -34,6 +35,16 @@ public class AuthController {
             String token = userService.authenticateUser(loginRequest);
             return ResponseEntity.ok(token);
         } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<?> withdrawUser(@Valid @RequestBody WithdrawRequest withdrawRequest){
+        try{
+            userService.withdrawUser(withdrawRequest);
+            return ResponseEntity.ok("회원 탈퇴가 완료되었습니다.");
+        } catch (RuntimeException e){
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

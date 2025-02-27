@@ -1,4 +1,4 @@
-package dawaga.dawaga.dto;
+package dawaga.dawaga.dto.auth;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
