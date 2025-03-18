@@ -35,8 +35,8 @@ public class User {
     @Column(name = "address", length = 255)
     private String userAddress;
 
-    @Column(name = "profile_pk")
-    private Integer userProfilePk;
+    @Column(name = "profile_url")
+    private String userProfileUrl;
 
     @Column(name = "withdraw_yn", columnDefinition = "TINYINT DEFAULT 0")
     private Integer userWithdrawYn;
@@ -98,12 +98,12 @@ public class User {
         this.userAddress = userAddress;
     }
 
-    public Integer getUserProfilePk() {
-        return userProfilePk;
+    public String getUserProfileUrl() {
+        return userProfileUrl;
     }
 
-    public void setUserProfilePk(Integer userProfilePk) {
-        this.userProfilePk = userProfilePk;
+    public void setUserProfileUrl(String userProfileUrl) {
+        this.userProfileUrl = userProfileUrl;
     }
 
     public Integer getUserWithdrawYn() {

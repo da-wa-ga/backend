@@ -12,4 +12,12 @@ public class LoginRequest {
 
     @NotBlank
     private String password;
+
+    public @NotBlank String getId() {
+        return id;
+    }
+
+    public @NotBlank String getPassword() {
+        return password;
+    }
 }

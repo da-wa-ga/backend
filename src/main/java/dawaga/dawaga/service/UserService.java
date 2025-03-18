@@ -1,8 +1,8 @@
 package dawaga.dawaga.service;
 
-import dawaga.dawaga.dto.auth.LoginRequest;
-import dawaga.dawaga.dto.auth.SignupRequest;
-import dawaga.dawaga.dto.auth.WithdrawRequest;
+import dawaga.dawaga.dto.auth.*;
+import dawaga.dawaga.dto.user.ChangeAddressRequest;
+import dawaga.dawaga.dto.user.ChangeNicknameRequest;
 import dawaga.dawaga.model.User;
 import dawaga.dawaga.respository.UserRepository;
 import dawaga.dawaga.security.JwtTokenProvider;
@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -22,14 +23,17 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;  // 추가
-    private final JwtTokenProvider jwtTokenProvider;  // 추가
+    private final AuthenticationManager authenticationManager;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final S3Service s3Service;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider, S3Service s3Service) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.s3Service = s3Service;
+
     }
 
     public User registerUser(SignupRequest request) {
@@ -96,4 +100,67 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @Transactional
+    public void changeNickname(ChangeNicknameRequest changeNicknameRequest) {
+        // 현재 로그인한 사용자 가져오기
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<User> optionalUser = userRepository.findByUserId(userId);
+
+        if (optionalUser.isEmpty()) {
+            throw new RuntimeException("사용자를 찾을 수 없습니다.");
+        }
+
+        User user = optionalUser.get();
+
+        // 중복 닉네임 검사
+        if (userRepository.existsByUserNickname(changeNicknameRequest.getNewNickname())) {
+            throw new RuntimeException("이미 사용 중인 닉네임입니다.");
+        }
+
+        // 닉네임 변경
+        user.setUserNickname(changeNicknameRequest.getNewNickname());
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void changeAddress(ChangeAddressRequest changeAddressRequest){
+        // 현재 로그인한 사용자 가져오기
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<User> optionalUser = userRepository.findByUserId(userId);
+
+        if (optionalUser.isEmpty()) {
+            throw new RuntimeException("사용자를 찾을 수 없습니다.");
+        }
+
+        User user = optionalUser.get();
+
+        // 주소 변경
+        user.setUserAddress(changeAddressRequest.getNewAddress());
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public String changeProfileImage(MultipartFile file) {
+        // 현재 로그인한 사용자 가져오기
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<User> optionalUser;
+        optionalUser = userRepository.findByUserId(userId);
+
+        if (optionalUser.isEmpty()) {
+            throw new RuntimeException("사용자를 찾을 수 없습니다.");
+        }
+
+        User user = optionalUser.get();
+        // 기존 프로필 이미지 삭제
+        if (user.getUserProfileUrl() != null) {
+            s3Service.deleteFile(user.getUserProfileUrl());
+        }
+
+        // 새 프로필 이미지 업로드
+        String newProfileImageUrl = s3Service.uploadFile(file);
+        user.setUserProfileUrl(newProfileImageUrl);
+        userRepository.save(user);
+
+        return newProfileImageUrl; // 변경된 프로필 URL 반환
+    }
 }

@@ -1,10 +1,9 @@
 package dawaga.dawaga.controller;
 
-import dawaga.dawaga.dto.auth.LoginRequest;
-import dawaga.dawaga.dto.auth.SignupRequest;
-import dawaga.dawaga.dto.auth.WithdrawRequest;
+import dawaga.dawaga.dto.auth.*;
 import dawaga.dawaga.model.User;
 import dawaga.dawaga.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +18,7 @@ public class AuthController {
         this.userService = userService;
     }
 
+    @Operation(summary = "회원가입")
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest) {
         try {
@@ -29,6 +29,7 @@ public class AuthController {
         }
     }
 
+    @Operation(summary = "로그인")
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@Valid @RequestBody LoginRequest loginRequest) {
         try {
@@ -39,6 +40,7 @@ public class AuthController {
         }
     }
 
+    @Operation(summary = "탈퇴")
     @PostMapping("/withdraw")
     public ResponseEntity<?> withdrawUser(@Valid @RequestBody WithdrawRequest withdrawRequest){
         try{

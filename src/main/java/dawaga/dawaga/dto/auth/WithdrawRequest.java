@@ -11,9 +11,11 @@ public class WithdrawRequest {
     @NotBlank(message = "비밀번호를 입력하세요.")
     private String password;  // 탈퇴 확인을 위한 비밀번호
 
-    public WithdrawRequest() {}
-
     public WithdrawRequest(String password) {
         this.password = password;
+    }
+
+    public @NotBlank(message = "비밀번호를 입력하세요.") String getPassword() {
+        return password;
     }
 }
