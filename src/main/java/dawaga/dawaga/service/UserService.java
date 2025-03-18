@@ -4,7 +4,7 @@ import dawaga.dawaga.dto.auth.*;
 import dawaga.dawaga.dto.user.ChangeAddressRequest;
 import dawaga.dawaga.dto.user.ChangeNicknameRequest;
 import dawaga.dawaga.model.User;
-import dawaga.dawaga.respository.UserRepository;
+import dawaga.dawaga.repository.UserRepository;
 import dawaga.dawaga.security.JwtTokenProvider;
 import jakarta.transaction.Transactional;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,8 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 
+/**
+ * 사용자 관련 비즈니스 로직을 처리하는 서비스 클래스.
+ *
+ * @author SeryeongK
+ */
 @Service
 public class UserService {
 
@@ -27,26 +31,37 @@ public class UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final S3Service s3Service;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider, S3Service s3Service) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
+                       S3Service s3Service) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.s3Service = s3Service;
-
     }
 
+    /**
+     * 회원가입을 처리하는 메서드.
+     *
+     * @param request 회원가입 요청 정보 (아이디, 이름, 닉네임, 비밀번호, 주소)
+     * @return 새로 등록된 사용자
+     *
+     * @throws RuntimeException 아이디 중복 => "이미 사용중인 아이디입니다."
+     * @throws RuntimeException 닉네임 중복 => "이미 사용중인 닉네임입니다."
+     *
+     * @see UserRepository#existsByUserId(String) 아이디 중복 확인
+     * @see UserRepository#existsByUserNickname(String) 닉네임 중복 확인
+     * @see PasswordEncoder#encode(CharSequence) 비밀번호 암호화
+     */
     public User registerUser(SignupRequest request) {
-        // 중복 여부 확인: 로그인 아이디 중복 확인
         if (userRepository.existsByUserId(request.getId())) {
             throw new RuntimeException("이미 사용중인 아이디입니다.");
         }
-        // 중복 여부 확인: 닉네임 중복 확인
         if (userRepository.existsByUserNickname(request.getNickname())) {
             throw new RuntimeException("이미 사용중인 닉네임입니다.");
         }
 
-        // 새 User 생성 및 비밀번호 암호화
         User user = new User();
         user.setUserId(request.getId());
         user.setUserName(request.getName());
@@ -58,109 +73,104 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * 사용자의 로그인을 처리하는 메서드.
+     *
+     * @param loginRequest 로그인 요청 정보 (아이디, 비밀번호)
+     * @return JWT 토큰
+     */
     public String authenticateUser(LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        loginRequest.getId(),
-                        loginRequest.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(loginRequest.getId(), loginRequest.getPassword())
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         return jwtTokenProvider.generateToken(authentication);
     }
 
+    /**
+     * 사용자의 회원 탈퇴를 처리하는 메서드.
+     *
+     * @param withdrawRequest 회원 탈퇴 요청 정보 (비밀번호 포함)
+     * @throws RuntimeException 인증 정보 없음 -> "인증 정보가 없습니다. 다시 로그인해주세요."
+     * @throws RuntimeException 비밀번호 불일치 -> "비밀번호가 일치하지 않습니다."
+     */
     @Transactional
     public void withdrawUser(WithdrawRequest withdrawRequest) {
-        // 현재 로그인한 사용자 정보 가져오기
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
         if (authentication == null || authentication.getName() == null) {
             throw new RuntimeException("인증 정보가 없습니다. 다시 로그인해주세요.");
         }
 
-        String userId = authentication.getName(); // 로그인한 사용자의 ID 가져오기
-        Optional<User> optionalUser = userRepository.findByUserId(userId);
+        String userId = authentication.getName();
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        if (optionalUser.isEmpty()) {
-            throw new RuntimeException("사용자를 찾을 수 없습니다.");
-        }
-
-        User user = optionalUser.get();
-
-        // 비밀번호 확인
         if (!passwordEncoder.matches(withdrawRequest.getPassword(), user.getUserPassword())) {
             throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
 
-        // 탈퇴 처리 (withdraw_yn = 1, withdraw_date = 현재 시간)
         user.setUserWithdrawYn(1);
         user.setUserWithdrawDate(LocalDateTime.now());
 
         userRepository.save(user);
     }
 
+    /**
+     * 사용자의 닉네임을 변경하는 메서드.
+     *
+     * @param changeNicknameRequest 닉네임 변경 요청 정보
+     * @throws RuntimeException 닉네임 중복 -> "이미 사용 중인 닉네임입니다."
+     */
     @Transactional
     public void changeNickname(ChangeNicknameRequest changeNicknameRequest) {
-        // 현재 로그인한 사용자 가져오기
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Optional<User> optionalUser = userRepository.findByUserId(userId);
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        if (optionalUser.isEmpty()) {
-            throw new RuntimeException("사용자를 찾을 수 없습니다.");
-        }
-
-        User user = optionalUser.get();
-
-        // 중복 닉네임 검사
         if (userRepository.existsByUserNickname(changeNicknameRequest.getNewNickname())) {
             throw new RuntimeException("이미 사용 중인 닉네임입니다.");
         }
 
-        // 닉네임 변경
         user.setUserNickname(changeNicknameRequest.getNewNickname());
         userRepository.save(user);
     }
 
+    /**
+     * 사용자의 주소를 변경하는 메서드.
+     *
+     * @param changeAddressRequest 주소 변경 요청 정보
+     */
     @Transactional
-    public void changeAddress(ChangeAddressRequest changeAddressRequest){
-        // 현재 로그인한 사용자 가져오기
+    public void changeAddress(ChangeAddressRequest changeAddressRequest) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Optional<User> optionalUser = userRepository.findByUserId(userId);
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        if (optionalUser.isEmpty()) {
-            throw new RuntimeException("사용자를 찾을 수 없습니다.");
-        }
-
-        User user = optionalUser.get();
-
-        // 주소 변경
         user.setUserAddress(changeAddressRequest.getNewAddress());
         userRepository.save(user);
     }
 
+    /**
+     * 사용자의 프로필 이미지를 변경하는 메서드.
+     *
+     * @param file 업로드할 프로필 이미지
+     * @return 업로드된 프로필 이미지 URL
+     */
     @Transactional
     public String changeProfileImage(MultipartFile file) {
-        // 현재 로그인한 사용자 가져오기
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Optional<User> optionalUser;
-        optionalUser = userRepository.findByUserId(userId);
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        if (optionalUser.isEmpty()) {
-            throw new RuntimeException("사용자를 찾을 수 없습니다.");
-        }
-
-        User user = optionalUser.get();
-        // 기존 프로필 이미지 삭제
         if (user.getUserProfileUrl() != null) {
             s3Service.deleteFile(user.getUserProfileUrl());
         }
 
-        // 새 프로필 이미지 업로드
         String newProfileImageUrl = s3Service.uploadFile(file);
         user.setUserProfileUrl(newProfileImageUrl);
         userRepository.save(user);
 
-        return newProfileImageUrl; // 변경된 프로필 URL 반환
+        return newProfileImageUrl;
     }
 }

@@ -1,7 +1,7 @@
 package dawaga.dawaga.security;
 
 import dawaga.dawaga.model.User;
-import dawaga.dawaga.respository.UserRepository;
+import dawaga.dawaga.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

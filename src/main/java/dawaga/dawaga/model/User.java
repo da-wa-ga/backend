@@ -130,11 +130,6 @@ public class User {
         this.userUpdatedAt = userUpdatedAt;
     }
 
-    @PrePersist
-    protected void onCreate() {
-        this.userCreatedAt = LocalDateTime.now();
-    }
-
     public LocalDateTime getUserCreatedAt() {
         return userCreatedAt;
     }
